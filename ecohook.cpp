@@ -13,7 +13,14 @@ const bool is_x86 = true;
 LPVOID GetRealFunctionAddress(LPVOID funcAddress)
 {
     byte codeBuffer[6]{ 0 };
-    bool succ = ReadProcessMemory(GetCurrentProcess(), funcAddress, codeBuffer, sizeof(codeBuffer), NULL);
+    bool succ = false;
+    if (Hook::CustomReadMem)
+        succ = Hook::CustomReadMem(funcAddress, codeBuffer, sizeof(codeBuffer), NULL);
+    else
+        succ = ReadProcessMemory(GetCurrentProcess(), funcAddress, codeBuffer, sizeof(codeBuffer), NULL);
+
+    if (!succ)
+        return nullptr;
 
     uint32_t funcOffset = 0x0;
 
@@ -85,6 +92,9 @@ bool Hook::HookFunc(LPVOID targetFunc, LPVOID detourFunc, LPVOID* originalFunc, 
 
     auto realTgAddress = is_x86 ? targetFunc : GetRealFunctionAddress(targetFunc);
 
+    if (realTgAddress == nullptr)
+        return false;
+
 #ifdef _DEBUG
     printf("Real Target address: 0x%p\n", realTgAddress);
 #endif
@@ -96,7 +106,11 @@ bool Hook::HookFunc(LPVOID targetFunc, LPVOID detourFunc, LPVOID* originalFunc, 
 
     BYTE* startInstructions = new BYTE[len];
     ZeroMemory(startInstructions, len);
-    bool readStatus = ReadProcessMemory(GetCurrentProcess(), realTgAddress, startInstructions, len, NULL);
+    bool readStatus = false;
+    if (CustomReadMem)
+        readStatus = CustomReadMem(realTgAddress, startInstructions, len, NULL);
+    else
+        readStatus = ReadProcessMemory(GetCurrentProcess(), realTgAddress, startInstructions, len, NULL);
 
     if (!readStatus)
         return false;
@@ -128,11 +142,17 @@ bool Hook::HookFunc(LPVOID targetFunc, LPVOID detourFunc, LPVOID* originalFunc, 
 
         BYTE spaceBufferDown[ChunkSize]{ 0 };
         SIZE_T bytesReadDown = 0;
-        bool readSuccDown = ReadProcessMemory(GetCurrentProcess(), (void*)((uint64_t)realTgAddress + positiveByteOffset), spaceBufferDown, ChunkSize, &bytesReadDown);
+        if (CustomReadMem)
+            readStatus = CustomReadMem((void*)((uint64_t)realTgAddress + positiveByteOffset), spaceBufferDown, ChunkSize, &bytesReadDown);
+        else
+        ReadProcessMemory(GetCurrentProcess(), (void*)((uint64_t)realTgAddress + positiveByteOffset), spaceBufferDown, ChunkSize, &bytesReadDown);
 
         BYTE spaceBufferUp[ChunkSize]{ 0 };
         SIZE_T bytesReadUp = 0;
-        bool readSuccUp = ReadProcessMemory(GetCurrentProcess(), (void*)((uint64_t)realTgAddress - (positiveByteOffset + ChunkSize)), spaceBufferUp, ChunkSize, &bytesReadUp);
+        if (CustomReadMem)
+            readStatus = CustomReadMem((void*)((uint64_t)realTgAddress - (positiveByteOffset + ChunkSize)), spaceBufferUp, ChunkSize, &bytesReadUp);
+        else
+        ReadProcessMemory(GetCurrentProcess(), (void*)((uint64_t)realTgAddress - (positiveByteOffset + ChunkSize)), spaceBufferUp, ChunkSize, &bytesReadUp);
 
         if (possibleSpaces < detourMaxSpaces)
         {
