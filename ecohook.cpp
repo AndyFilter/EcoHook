@@ -170,7 +170,7 @@ bool Hook::HookFunc(LPVOID targetFunc, LPVOID detourFunc, LPVOID* originalFunc, 
         // randomize index of foundOffsets :imp: and make sure that foundOffsets is not the same as foundTrampolineOffsets
         auto detourSpaceAddy = (void*)((uint64_t)realTgAddress + (foundOffsets[0]));
         auto originalStartSpaceAddy = (void*)0;
-        for (size_t i = 0; i < possibleTrampolineSpaces; i++)
+        for (int i = 0; i < possibleTrampolineSpaces; i++)
         {
             if (abs(foundOffsets[0] - foundTrampolineOffsets[i]) > 16)
             {
