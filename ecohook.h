@@ -2,6 +2,13 @@
 
 #include <Windows.h>
 
+/*
+
+ToDo:
+- Add unhooking functionality... cuh...
+
+*/
+
 namespace Hook
 {
 	bool HookFunc(LPVOID targetFunc, LPVOID detourFunc, LPVOID* originalFunc, unsigned int len);
