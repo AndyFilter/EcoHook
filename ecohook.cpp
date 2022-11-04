@@ -144,7 +144,7 @@ bool Hook::HookFunc(LPVOID targetFunc, LPVOID detourFunc, LPVOID* originalFunc, 
     // This code just looks for available spaces in the neighbouring chunks.
     while ((!(possibleSpaces >= detourMaxSpaces) || !(possibleTrampolineSpaces >= trampolineMaxSpaces)) && (scanIndex * ChunkSize) < ReadSize)
     {
-        // how far from the target function are we going to look from
+        // how far away from the target function are we going to look for
         auto positiveByteOffset = (scanIndex - 1) * ChunkSize;
 
         BYTE spaceBufferDown[ChunkSize]{ 0 };
@@ -210,7 +210,7 @@ bool Hook::HookFunc(LPVOID targetFunc, LPVOID detourFunc, LPVOID* originalFunc, 
         }
 
         if (originalStartSpaceAddy == 0)
-            goto CleanUp; // Exit
+            goto CleanUp; // Exit Should return false
 
 #ifdef _DEBUG
         printf("Selected Original Space Addy: 0x%p\n", originalStartSpaceAddy);
@@ -219,7 +219,7 @@ bool Hook::HookFunc(LPVOID targetFunc, LPVOID detourFunc, LPVOID* originalFunc, 
 #if defined(_M_X64) || defined(__x86_64__)
 
         BYTE detour_shell_code[] = { 0xFF, 0x25, 0x00 , 0x00 , 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-        // 0xFF is JMP, 0x25 (100101) is a MOD R/M to get 0xFF/5, which is absolute, far indirect jump. (https://www.felixcloutier.com/x86/jmp)
+        // 0xFF is JMP, 0x25 (0b00100101) is a MOD R/M to get 0xFF/5, which is absolute, far indirect jump. (https://www.felixcloutier.com/x86/jmp). 5 - 0101
 
         auto toHookAddy = (uint64_t)detourFunc;
         memcpy(detour_shell_code + 6, &toHookAddy, sizeof(void*));
@@ -322,13 +322,24 @@ bool Hook::HookFunc(LPVOID targetFunc, LPVOID detourFunc, LPVOID* originalFunc, 
 
         *originalFunc = originalStartSpaceAddy;
 
-        delete[] trampoline_shell_code, original_shell_code;
+        delete[] trampoline_shell_code;
+        delete[] original_shell_code;
 #endif
     }
     else
     {
 #ifdef _DEBUG
         printf("Not enough Space, detours: %i, original: %i\n", possibleSpaces, possibleTrampolineSpaces);
+
+        if (!isPriviliged)
+        {
+            VirtualProtect((LPVOID)((uint64_t)realTgAddress - (ReadSize / 2)), ReadSize + 1, prot, &tempProt);
+        }
+
+        delete[] startInstructions;
+        delete[] foundTrampolineOffsets;
+
+        return false;
 #endif
     }
 
