@@ -359,6 +359,9 @@ CleanUpFalse:
 
 bool Hook::UnHookFunc(LPVOID targetFunc)
 {
+    if (HookedFuncs.find(targetFunc) == HookedFuncs.end())
+        return false;
+
     HookedFuncInfo& ogFuncInfo = HookedFuncs[targetFunc];
 
     LPVOID actualTargetFunc = GetRealFunctionAddress(targetFunc);
@@ -415,7 +418,7 @@ bool Hook::UnHookFunc(LPVOID targetFunc)
 
     WriteMem((LPVOID)(trampolineJmpOffset + (uint64_t)actualTargetFunc + 5), func_filler, 14);
 
-#endif
+#endif X64
 
     WriteMem(actualTargetFunc, og_firstInstructions, ogFuncInfo.len);
 
